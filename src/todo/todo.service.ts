@@ -14,13 +14,6 @@ export class TodoService {
     private userService: UsersService,
   ) {}
 
-  async getAll() {
-    return this.todoRepository.find({
-      select: ['id', 'todo', 'status', 'order'],
-      order: { order: 'ASC' },
-    });
-  }
-
   async createTodo(
     id: number,
     createTodoDto: CreateTodoDto,
@@ -41,73 +34,21 @@ export class TodoService {
     console.log(data);
     return await this.todoRepository.save(data);
   }
+  async getAll() {
+    return this.todoRepository.find({
+      select: ['id', 'todo', 'status', 'order'],
+      order: { order: 'ASC' },
+    });
+  }
 
   findOne(datas: any) {
     return this.todoRepository.findOne({ where: { ...datas } });
   }
-  async updateTodos(
-    userId: number,
-    source_Id: number,
-    target_Id: number,
-    updateToDo: UpdateTodoDto,
-  ) {
-    try {
-      const { status } = updateToDo;
-      const allTodos = await this.todoRepository.find({
-        where: { users: userId },
-        order: { order: 'ASC' },
-      });
-      console.log(allTodos);
 
-      const sourceIndex: any = allTodos.find((todo) => todo.id === source_Id);
-      const targetIndex: any = allTodos.find((todo) => todo.id === target_Id);
-
-      if (source_Id > sourceIndex.id && target_Id > targetIndex.id) {
-        throw new BadRequestException('Source and target Id are not Found....');
-      } else if (source_Id < sourceIndex.id && target_Id < targetIndex.id) {
-        throw new BadRequestException('Source and target Id are not Found....');
-      }
-
-      const ids = { sourceIndex, targetIndex };
-      if (!ids) {
-        throw new BadRequestException('The Id is invalid or not found.');
-      }
-      if (sourceIndex.status !== status) {
-        sourceIndex.status = status;
-      }
-      const filterItem = allTodos.filter(
-        (todo) => todo.id !== sourceIndex && todo.status === status,
-      );
-
-      const remainingFilterItem = allTodos.filter(
-        (todo) => todo.id !== sourceIndex && todo.status !== status,
-      );
-
-      filterItem.splice(targetIndex.order - 1, 0, sourceIndex);
-      console.log('Inside Splice');
-      console.log(filterItem);
-
-      for (let i = 0; i < filterItem.length; i++) {
-        if (filterItem[i].id === sourceIndex) {
-          filterItem[i].order = targetIndex;
-        } else if (filterItem[i].order !== i + 1) {
-          filterItem[i].order = i + 1;
-        }
-      }
-
-      console.log('omg');
-      console.log(filterItem);
-      await this.todoRepository.save(filterItem);
-      return this.getTodobyUser(userId);
-    } catch (e) {
-      console.log(e, 'Good Bye');
-    }
-  }
-
-  getTodobyUser(id: number) {
+  getTodosByIdStatus(id: number, status: TaskStatus) {
     return this.todoRepository.find({
-      where: { users: id },
-      select: ['id', 'status', 'order', 'todo'],
+      where: { users: id, status: status },
+      select: ['id', 'todo', 'order'],
       order: { order: 'ASC' },
     });
   }
@@ -130,50 +71,125 @@ export class TodoService {
     }
   }
 
-  //   async updateTodos(userId: number, updateToDo: UpdateTodoDto) {
-  //     const { id, status } = updateToDo;
+  async updateTodos(
+    userId: number,
+    source_Id: number,
+    target_Id: number,
+    updateToDo: UpdateTodoDto,
+  ) {
+    try {
+      const { status } = updateToDo;
+      const allTodos = await this.todoRepository.find({
+        where: { users: userId },
+        order: { order: 'ASC' },
+      });
+      console.log('alltodos', allTodos);
 
-  //     const allTodos = await this.todoRepository.find({
-  //       where: { users: userId },
-  //       // select: ['id', 'todo'],
-  //       order: { order: 'ASC' },
-  //     });
+      const sourceIndex: any = allTodos.find((todo) => todo.id === source_Id);
+      const targetIndex: any = allTodos.find((todo) => todo.id === target_Id);
+      console.log('source index', sourceIndex);
+      console.log('target index', targetIndex);
 
-  //     const source = allTodos.find((todo) => todo.id === id);
-  //     console.log(source, 'source data');
+      if (source_Id > sourceIndex.id && target_Id > targetIndex.id) {
+        throw new BadRequestException('Source and target Id are not Found....');
+      } else if (source_Id < sourceIndex.id && target_Id < targetIndex.id) {
+        throw new BadRequestException('Source and target Id are not Found....');
+      }
+      const ids = { sourceIndex, targetIndex };
+      if (!ids) {
+        throw new BadRequestException('The Id is invalid or not found.');
+      }
 
-  //     if(source.status !== status){
-  //       source.status = status
-  //     }
+      if (sourceIndex.status !== status) {
+        sourceIndex.status = status;
+      }
+      const filterItem = allTodos.filter(
+        (todo) => todo.id !== source_Id && todo.status === status,
+      );
+      console.log('filterItem', filterItem);
 
-  //     console.log('reach');
+      const remainingFilterItem = allTodos.filter(
+        (todo) => todo.id !== source_Id && todo.status !== status,
+      );
+      console.log('remaining', remainingFilterItem);
 
-  //     // console.log(source);
-  //     console.log('source data');
+      if (targetIndex) {
+        const foundIndex =  filterItem.indexOf(targetIndex);
 
-  //     const to_update = allTodos.filter((todo) => todo.id !== id);
-  //     // console.log(to_update, 'updat ed using filter');
+        filterItem.splice(
+          foundIndex + (sourceIndex.order < targetIndex.order ? 1 : 0),
+          0,
+          sourceIndex,
+        );
 
-  //     to_update.splice(order - 1, 0, source);
-  //     // console.log(to_update, 'update after splice');
+        console.log('filterItem',  filterItem);
 
-  //     for (let i = 0; i < to_update.length; i++) {
-  //       if (to_update[i].id === id) {
-  //         to_update[i].order = order;
-  //       } else if (to_update[i].order !== i + 1) {
-  //         to_update[i].order = i + 1;
-  //       }
-  //     }
+        filterItem.forEach((todo, index) => {
+          todo.order = index + 1;
+        });   
+        console.log("loop", filterItem)
+        remainingFilterItem.forEach((todo, index) => {
+          todo.order = index + 1;
+        });
+        console.log("loopfor remaingng", filterItem);
 
-  //     console.log(to_update, 'after al update');
-  //     await this.todoRepository.save(to_update);
-  //     return this.getTodobyUser(userId);
-  //   }
 
-  //   getTodobyUser(id: number) {
-  //     return this.todoRepository.find({
-  //       where: { users: id },
-  //       select: ['id', 'status', 'order', 'todo'],
-  //       order: { order: 'ASC' },
-  //     });
+        await this.todoRepository.save(filterItem);
+      } else {
+        throw new BadRequestException(
+          'You cannot drag the task in here to there.',
+        );
+      }
+      return this.getTodosByIdStatus(userId, status);
+    } catch (e) {
+      throw new BadRequestException('Invalid Source and Target Id are enter.');
+    }
+  }
 }
+
+//   async updateTodos(userId: number, updateToDo: UpdateTodoDto) {
+//     const { id, status } = updateToDo;
+
+//     const allTodos = await this.todoRepository.find({
+//       where: { users: userId },
+//       // select: ['id', 'todo'],
+//       order: { order: 'ASC' },
+//     });
+
+//     const source = allTodos.find((todo) => todo.id === id);
+//     console.log(source, 'source data');
+
+//     if(source.status !== status){
+//       source.status = status
+//     }
+
+//     console.log('reach');
+
+//     // console.log(source);
+//     console.log('source data');
+
+//     const to_update = allTodos.filter((todo) => todo.id !== id);
+//     // console.log(to_update, 'updat ed using filter');
+
+//     to_update.splice(order - 1, 0, source);
+//     // console.log(to_update, 'update after splice');
+
+//     for (let i = 0; i < to_update.length; i++) {
+//       if (to_update[i].id === id) {
+//         to_update[i].order = order;
+//       } else if (to_update[i].order !== i + 1) {
+//         to_update[i].order = i + 1;
+//       }
+//     }
+
+//     console.log(to_update, 'after al update');
+//     await this.todoRepository.save(to_update);
+//     return this.getTodobyUser(userId);
+//   }
+
+//   getTodobyUser(id: number) {
+//     return this.todoRepository.find({
+//       where: { users: id },
+//       select: ['id', 'status', 'order', 'todo'],
+//       order: { order: 'ASC' },
+//     });

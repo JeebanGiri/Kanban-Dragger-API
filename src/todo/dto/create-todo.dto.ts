@@ -1,6 +1,15 @@
 import { IsString, IsNotEmpty, IsEnum } from 'class-validator';
 import { TaskStatus } from './task-status.enum';
 import { ApiProperty } from '@nestjs/swagger';
+// import Joi from 'joi';
+import * as Joi from 'joi';
+
+
+export const createTodoSchema = Joi.object({
+  todo: Joi.string().required(),
+  status: Joi.string().required(),
+  order: Joi.number().required()
+})
 
 export class CreateTodoDto {
 

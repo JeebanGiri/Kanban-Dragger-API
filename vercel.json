@@ -1,0 +1,27 @@
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "package.json",
+            "use": "@vercel/node"
+        }
+    ],
+    "redirects": [
+        {
+            "source": "/old-page",
+            "destination": "/new-page",
+            "statusCode": 301
+        }
+    ],
+    "headers": [
+        {
+            "source": "/images/(.*)",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "public, max-age=604800"
+                }
+            ]
+        }
+    ]
+}
